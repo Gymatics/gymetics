@@ -433,7 +433,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       <svg class="search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input class="search-field" id="add-ex-search" placeholder="Suchen..." oninput="filterAddEx()">
     </div>
-    <div id="add-ex-list" style="max-height:55vh;overflow-y:auto;border-radius:var(--r);border:1px solid var(--border);overflow:hidden;"></div>
+    <div id="add-ex-list" style="max-height:55vh;overflow-y:auto;-webkit-overflow-scrolling:touch;border-radius:var(--r);border:1px solid var(--border);"></div>
     <button class="btn btn-secondary" onclick="closeModal('add-ex-modal')" style="margin-top:12px;">Schließen</button>
   </div>
 </div>
@@ -828,19 +828,210 @@ function filterEx(){
       </div>`).join('')}</div>`).join('');
 }
 
+
+// ── MUSCLE → SVG MAP ──
+const MUSCLE_MAP = {
+  'Brust':        {front:['chest-l','chest-r'],         back:[]},
+  'Rücken':       {front:[],                             back:['trap','lat-l','lat-r','lower-back']},
+  'Schultern':    {front:['delt-front-l','delt-front-r'],back:['delt-rear-l','delt-rear-r']},
+  'Bizeps':       {front:['bicep-l','bicep-r'],          back:[]},
+  'Trizeps':      {front:[],                             back:['tricep-l','tricep-r']},
+  'Unterarme':    {front:['forearm-l','forearm-r'],      back:[]},
+  'Bauch':        {front:['abs-upper','abs-lower'],      back:[]},
+  'Oberschenkel vorne':{front:['quad-l','quad-r'],       back:[]},
+  'Oberschenkel hinten':{front:[],                       back:['hamstring-l','hamstring-r']},
+  'Gesäß':        {front:[],                             back:['glute-l','glute-r']},
+  'Wade':         {front:['calf-front-l','calf-front-r'],back:['calf-l','calf-r']},
+  'Nacken':       {front:[],                             back:['neck-back']},
+  'Ausdauer':     {front:['chest-l','chest-r','abs-upper'],back:['lat-l','lat-r']},
+};
+
+function getMuscleIds(muscleName, side='both'){
+  const m = MUSCLE_MAP[muscleName] || {front:[],back:[]};
+  if(side==='front') return m.front;
+  if(side==='back') return m.back;
+  return [...m.front, ...m.back];
+}
+
+function buildBodySVG(activeMuscles, side='front', size=130){
+  // activeMuscles = [{id, isPrimary}]
+  const activeMap = {};
+  activeMuscles.forEach(m => activeMap[m.id] = m.isPrimary);
+
+  const lit = (id) => activeMap[id] ? (activeMap[id]==='primary'?'#a78bfa':'#67e8f9') : 'rgba(255,255,255,0.08)';
+  const glow = (id) => activeMap[id] ? (activeMap[id]==='primary'?'drop-shadow(0 0 6px #8b5cf6)':'drop-shadow(0 0 5px #22d3ee)') : 'none';
+
+  if(side==='front'){
+    return `<svg viewBox="0 0 100 220" width="${size}" height="${size*2.2}" style="filter:none;">
+      <!-- HEAD -->
+      <ellipse cx="50" cy="14" rx="10" ry="12" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,.15)" stroke-width=".5"/>
+      <!-- NECK -->
+      <rect x="45" y="24" width="10" height="8" rx="2" fill="rgba(255,255,255,0.08)" id="neck"/>
+      <!-- TRAPS front -->
+      <path d="M38 32 Q50 30 62 32 L60 40 Q50 38 40 40Z" fill="rgba(255,255,255,0.07)"/>
+      <!-- SHOULDERS front -->
+      <ellipse id="delt-front-l" cx="33" cy="40" rx="9" ry="7" fill="${lit('delt-front-l')}" style="filter:${glow('delt-front-l')}"/>
+      <ellipse id="delt-front-r" cx="67" cy="40" rx="9" ry="7" fill="${lit('delt-front-r')}" style="filter:${glow('delt-front-r')}"/>
+      <!-- CHEST -->
+      <path id="chest-l" d="M40 38 Q50 36 50 48 L40 52 Q36 46 38 40Z" fill="${lit('chest-l')}" style="filter:${glow('chest-l')}"/>
+      <path id="chest-r" d="M60 38 Q50 36 50 48 L60 52 Q64 46 62 40Z" fill="${lit('chest-r')}" style="filter:${glow('chest-r')}"/>
+      <!-- BICEPS -->
+      <ellipse id="bicep-l" cx="28" cy="56" rx="5" ry="10" fill="${lit('bicep-l')}" style="filter:${glow('bicep-l')}"/>
+      <ellipse id="bicep-r" cx="72" cy="56" rx="5" ry="10" fill="${lit('bicep-r')}" style="filter:${glow('bicep-r')}"/>
+      <!-- FOREARMS -->
+      <ellipse id="forearm-l" cx="24" cy="76" rx="4" ry="9" fill="${lit('forearm-l')}" style="filter:${glow('forearm-l')}"/>
+      <ellipse id="forearm-r" cx="76" cy="76" rx="4" ry="9" fill="${lit('forearm-r')}" style="filter:${glow('forearm-r')}"/>
+      <!-- ABS -->
+      <rect id="abs-upper" x="43" y="52" width="14" height="12" rx="3" fill="${lit('abs-upper')}" style="filter:${glow('abs-upper')}"/>
+      <rect id="abs-lower" x="43" y="66" width="14" height="12" rx="3" fill="${lit('abs-lower')}" style="filter:${glow('abs-lower')}"/>
+      <!-- TORSO outline -->
+      <path d="M38 32 L28 44 L22 90 L38 94 L38 78 L62 78 L62 94 L78 90 L72 44 L62 32Z" fill="none" stroke="rgba(255,255,255,.1)" stroke-width=".8"/>
+      <!-- HIPS -->
+      <path d="M38 94 Q50 98 62 94 L64 108 Q50 112 36 108Z" fill="rgba(255,255,255,0.07)"/>
+      <!-- QUADS -->
+      <ellipse id="quad-l" cx="40" cy="130" rx="10" ry="22" fill="${lit('quad-l')}" style="filter:${glow('quad-l')}"/>
+      <ellipse id="quad-r" cx="60" cy="130" rx="10" ry="22" fill="${lit('quad-r')}" style="filter:${glow('quad-r')}"/>
+      <!-- CALF FRONT -->
+      <ellipse id="calf-front-l" cx="39" cy="175" rx="6" ry="14" fill="${lit('calf-front-l')}" style="filter:${glow('calf-front-l')}"/>
+      <ellipse id="calf-front-r" cx="61" cy="175" rx="6" ry="14" fill="${lit('calf-front-r')}" style="filter:${glow('calf-front-r')}"/>
+      <!-- FEET -->
+      <ellipse cx="38" cy="192" rx="7" ry="4" fill="rgba(255,255,255,0.06)"/>
+      <ellipse cx="62" cy="192" rx="7" ry="4" fill="rgba(255,255,255,0.06)"/>
+      <!-- LABEL -->
+      <text x="50" y="210" text-anchor="middle" font-size="7" fill="rgba(255,255,255,.3)" font-family="Arial">VORNE</text>
+    </svg>`;
+  } else {
+    return `<svg viewBox="0 0 100 220" width="${size}" height="${size*2.2}" style="filter:none;">
+      <!-- HEAD -->
+      <ellipse cx="50" cy="14" rx="10" ry="12" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,.15)" stroke-width=".5"/>
+      <!-- NECK BACK -->
+      <rect id="neck-back" x="45" y="24" width="10" height="8" rx="2" fill="${lit('neck-back')}" style="filter:${glow('neck-back')}"/>
+      <!-- TRAPS -->
+      <path id="trap" d="M35 30 Q50 26 65 30 L62 44 Q50 40 38 44Z" fill="${lit('trap')}" style="filter:${glow('trap')}"/>
+      <!-- REAR DELTS -->
+      <ellipse id="delt-rear-l" cx="32" cy="42" rx="8" ry="7" fill="${lit('delt-rear-l')}" style="filter:${glow('delt-rear-l')}"/>
+      <ellipse id="delt-rear-r" cx="68" cy="42" rx="8" ry="7" fill="${lit('delt-rear-r')}" style="filter:${glow('delt-rear-r')}"/>
+      <!-- LATS -->
+      <path id="lat-l" d="M38 44 L28 60 L32 80 L46 78 L44 52Z" fill="${lit('lat-l')}" style="filter:${glow('lat-l')}"/>
+      <path id="lat-r" d="M62 44 L72 60 L68 80 L54 78 L56 52Z" fill="${lit('lat-r')}" style="filter:${glow('lat-r')}"/>
+      <!-- LOWER BACK -->
+      <rect id="lower-back" x="42" y="68" width="16" height="14" rx="3" fill="${lit('lower-back')}" style="filter:${glow('lower-back')}"/>
+      <!-- TRICEPS -->
+      <ellipse id="tricep-l" cx="26" cy="58" rx="5" ry="10" fill="${lit('tricep-l')}" style="filter:${glow('tricep-l')}"/>
+      <ellipse id="tricep-r" cx="74" cy="58" rx="5" ry="10" fill="${lit('tricep-r')}" style="filter:${glow('tricep-r')}"/>
+      <!-- FOREARMS back -->
+      <ellipse id="forearm-back-l" cx="23" cy="78" rx="4" ry="9" fill="rgba(255,255,255,0.07)"/>
+      <ellipse id="forearm-back-r" cx="77" cy="78" rx="4" ry="9" fill="rgba(255,255,255,0.07)"/>
+      <!-- GLUTES -->
+      <ellipse id="glute-l" cx="42" cy="100" rx="11" ry="10" fill="${lit('glute-l')}" style="filter:${glow('glute-l')}"/>
+      <ellipse id="glute-r" cx="58" cy="100" rx="11" ry="10" fill="${lit('glute-r')}" style="filter:${glow('glute-r')}"/>
+      <!-- HAMSTRINGS -->
+      <ellipse id="hamstring-l" cx="40" cy="132" rx="10" ry="21" fill="${lit('hamstring-l')}" style="filter:${glow('hamstring-l')}"/>
+      <ellipse id="hamstring-r" cx="60" cy="132" rx="10" ry="21" fill="${lit('hamstring-r')}" style="filter:${glow('hamstring-r')}"/>
+      <!-- CALVES -->
+      <ellipse id="calf-l" cx="39" cy="174" rx="7" ry="14" fill="${lit('calf-l')}" style="filter:${glow('calf-l')}"/>
+      <ellipse id="calf-r" cx="61" cy="174" rx="7" ry="14" fill="${lit('calf-r')}" style="filter:${glow('calf-r')}"/>
+      <!-- FEET -->
+      <ellipse cx="38" cy="192" rx="7" ry="4" fill="rgba(255,255,255,0.06)"/>
+      <ellipse cx="62" cy="192" rx="7" ry="4" fill="rgba(255,255,255,0.06)"/>
+      <!-- LABEL -->
+      <text x="50" y="210" text-anchor="middle" font-size="7" fill="rgba(255,255,255,.3)" font-family="Arial">HINTEN</text>
+    </svg>`;
+  }
+}
+
+function buildMiniBodySVG(primaryMuscle, size=80){
+  // For exercise detail — highlight primary muscle
+  const m = MUSCLE_MAP[primaryMuscle] || {front:[],back:[]};
+  const hasFront = m.front.length > 0;
+  const side = hasFront ? 'front' : 'back';
+  const activeMuscles = [...m.front.map(id=>({id,isPrimary:'primary'})), ...m.back.map(id=>({id,isPrimary:'primary'}))];
+  return buildBodySVG(activeMuscles, side, size);
+}
+
 function showExDetail(id){
   const ex=exercises.find(e=>e.id===id);if(!ex)return;
   document.getElementById('ex-detail-title').textContent=ex.name;
+
+  // Parse instructions into numbered steps
+  const steps = ex.instructions
+    ? ex.instructions.split(/[.!]|\n/).map(s=>s.trim()).filter(s=>s.length>8)
+    : [];
+
+  // Difficulty badge based on equipment
+  const diffMap={'Körpergewicht':'Einsteiger','Kurzhanteln':'Mittel','Langhantel':'Fortgeschritten','Maschine':'Mittel','Kabelzug':'Mittel','Barbell':'Fortgeschritten'};
+  const diff = diffMap[ex.equipment] || 'Mittel';
+  const diffColor = diff==='Einsteiger'?'#22d3ee':diff==='Mittel'?'#a78bfa':'#f59e0b';
+
+  // Primary muscles as chips
+  const allMuscles = [ex.muscle_group, ...(ex.secondary_muscles||[])];
+
   document.getElementById('ex-detail-content').innerHTML=`
-    <div style="background:${mg(ex.muscle_group)};border-radius:20px;padding:32px;text-align:center;font-size:64px;margin-bottom:18px;border:1px solid rgba(255,255,255,.06);">${me(ex.muscle_group)}</div>
-    <div class="card" style="margin:0 0 10px;">
-      <div class="card-label">Muskelgruppe</div>
-      <div style="font-size:17px;font-weight:800;">${ex.muscle_group}</div>
-      ${ex.secondary_muscles?.length?`<div style="margin-top:12px;"><div class="card-label">Nebenmuskeln</div>${ex.secondary_muscles.map(m=>`<span class="badge badge-purple" style="margin:2px 4px 2px 0;">${m}</span>`).join('')}</div>`:''}
+    <!-- Hero banner with body map -->
+    <div style="background:${mg(ex.muscle_group)};border-radius:20px;padding:20px 16px;text-align:center;margin-bottom:16px;border:1px solid rgba(255,255,255,.06);position:relative;overflow:hidden;">
+      <div style="position:absolute;inset:0;background:radial-gradient(circle at 50% 30%,rgba(255,255,255,.06),transparent 70%);"></div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:16px;position:relative;">
+        <div>${buildMiniBodySVG(ex.muscle_group, 70)}</div>
+        <div style="text-align:left;">
+          <div style="font-size:19px;font-weight:900;margin-bottom:6px;">${esc(ex.name)}</div>
+          <div style="font-size:13px;color:rgba(255,255,255,.7);margin-bottom:10px;">${esc(ex.muscle_group)}</div>
+          <span style="background:${diffColor}22;color:${diffColor};border:1px solid ${diffColor}44;border-radius:20px;padding:4px 14px;font-size:12px;font-weight:700;">${diff}</span>
+        </div>
+      </div>
     </div>
-    ${ex.equipment?`<div class="card" style="margin:0 0 10px;"><div class="card-label">Equipment</div><div style="font-weight:700;">${ex.equipment}</div></div>`:''}
-    ${ex.description?`<div class="card" style="margin:0 0 10px;"><div class="card-label">Beschreibung</div><div style="font-size:14px;color:var(--text2);line-height:1.8;">${esc(ex.description)}</div></div>`:''}
-    ${ex.instructions?`<div class="card" style="margin:0 0 10px;"><div class="card-label">Ausführung</div><div style="font-size:14px;line-height:2.0;">${esc(ex.instructions)}</div></div>`:''}
+
+    <!-- Muscle groups -->
+    <div class="card" style="margin:0 0 12px;">
+      <div class="card-label" style="margin-bottom:10px;">💪 Muskeln</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">
+        <span style="background:rgba(139,92,246,.2);color:#a78bfa;border:1px solid rgba(139,92,246,.3);border-radius:20px;padding:5px 12px;font-size:13px;font-weight:700;">${esc(ex.muscle_group)}</span>
+        ${(ex.secondary_muscles||[]).map(m=>`<span style="background:rgba(255,255,255,.05);color:var(--text2);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;">${m}</span>`).join('')}
+      </div>
+    </div>
+
+    <!-- Equipment & quick stats -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+      <div class="card" style="margin:0;text-align:center;">
+        <div style="font-size:28px;margin-bottom:6px;">🏋️</div>
+        <div class="card-label">Equipment</div>
+        <div style="font-weight:800;font-size:13px;">${esc(ex.equipment||'Keins')}</div>
+      </div>
+      <div class="card" style="margin:0;text-align:center;">
+        <div style="font-size:28px;margin-bottom:6px;">🎯</div>
+        <div class="card-label">Schwierigkeit</div>
+        <div style="font-weight:800;font-size:13px;color:${diffColor};">${diff}</div>
+      </div>
+    </div>
+
+    <!-- Description -->
+    ${ex.description?`
+    <div class="card" style="margin:0 0 12px;">
+      <div class="card-label" style="margin-bottom:8px;">📝 Beschreibung</div>
+      <div style="font-size:14px;color:var(--text2);line-height:1.8;">${esc(ex.description)}</div>
+    </div>`:''}
+
+    <!-- Step by step instructions -->
+    ${steps.length?`
+    <div class="card" style="margin:0 0 12px;">
+      <div class="card-label" style="margin-bottom:12px;">📋 Ausführung Schritt für Schritt</div>
+      ${steps.map((s,i)=>`
+        <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:${i<steps.length-1?'14px':'0'};">
+          <div style="min-width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#22d3ee);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:#fff;flex-shrink:0;">${i+1}</div>
+          <div style="font-size:14px;line-height:1.7;color:var(--text);padding-top:4px;">${esc(s)}.</div>
+        </div>
+      `).join('')}
+    </div>`:''}
+
+    <!-- Tips -->
+    <div class="card" style="margin:0 0 12px;background:rgba(34,211,238,.05);border-color:rgba(34,211,238,.15);">
+      <div style="display:flex;gap:10px;align-items:flex-start;">
+        <span style="font-size:20px;">💡</span>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:#22d3ee;margin-bottom:4px;">PROFI-TIPP</div>
+          <div style="font-size:13px;color:var(--text2);line-height:1.7;">Achte auf kontrollierte Bewegungen und atme gleichmäßig. Qualität vor Gewicht!</div>
+        </div>
+      </div>
+    </div>
   `;
   document.getElementById('ex-detail-modal').classList.add('show');
 }
@@ -1070,10 +1261,105 @@ function skipRest(){clearInterval(restInt);document.getElementById('rest-overlay
 async function finishWorkout(){
   if(!confirm('Training beenden?'))return;
   clearInterval(wTimerInt);skipRest();
-  try{await patch('workout_sessions',wSession.id,{duration_minutes:Math.floor(wSecs/60)});}catch(e){}
+  const durationMins = Math.floor(wSecs/60);
+  try{await patch('workout_sessions',wSession.id,{duration_minutes:durationMins});}catch(e){}
   document.getElementById('active-workout').style.display='none';
-  toast(`🎉 ${Math.floor(wSecs/60)} Min – gut gemacht!`);
-  await loadAll();
+  await showWorkoutSummary(durationMins);
+}
+
+async function showWorkoutSummary(durationMins){
+  try{
+    // Load sets from this session
+    const sets = await get('session_sets',`?session_id=eq.${wSession.id}&select=*,exercises(name,muscle_group,secondary_muscles)`);
+    
+    // Group by exercise
+    const byEx = {};
+    sets.forEach(s=>{
+      const name = s.exercises?.name||'?';
+      if(!byEx[name]) byEx[name]={sets:[],muscle:s.exercises?.muscle_group||'',secondary:s.exercises?.secondary_muscles||[]};
+      byEx[name].sets.push(s);
+    });
+
+    const exNames = Object.keys(byEx);
+    const totalVol = sets.reduce((a,s)=>a+(s.weight_kg||0)*(s.reps||0),0);
+    const totalSets = sets.length;
+
+    // Collect all trained muscles
+    const primaryMuscles = new Set();
+    const secondaryMuscles = new Set();
+    exNames.forEach(n=>{
+      if(byEx[n].muscle) primaryMuscles.add(byEx[n].muscle);
+      (byEx[n].secondary||[]).forEach(m=>secondaryMuscles.add(m));
+    });
+
+    // Build active muscle list for body maps
+    const frontActive=[], backActive=[];
+    primaryMuscles.forEach(m=>{
+      const ids = getMuscleIds(m,'front');
+      ids.forEach(id=>frontActive.push({id,isPrimary:'primary'}));
+    });
+    secondaryMuscles.forEach(m=>{
+      const ids = getMuscleIds(m,'front');
+      ids.forEach(id=>{ if(!frontActive.find(x=>x.id===id)) frontActive.push({id,isPrimary:'secondary'}); });
+    });
+    primaryMuscles.forEach(m=>{
+      const ids = getMuscleIds(m,'back');
+      ids.forEach(id=>backActive.push({id,isPrimary:'primary'}));
+    });
+    secondaryMuscles.forEach(m=>{
+      const ids = getMuscleIds(m,'back');
+      ids.forEach(id=>{ if(!backActive.find(x=>x.id===id)) backActive.push({id,isPrimary:'secondary'}); });
+    });
+
+    // Stats row
+    document.getElementById('sum-stats').innerHTML=`
+      <div class="stat"><div class="stat-num text-gradient">${durationMins}'</div><div class="stat-label">Dauer</div></div>
+      <div class="stat"><div class="stat-num text-gradient">${totalSets}</div><div class="stat-label">Sätze</div></div>
+      <div class="stat"><div class="stat-num text-gradient">${Math.round(totalVol)}<span style="font-size:14px">kg</span></div><div class="stat-label">Volumen</div></div>
+    `;
+
+    // Subtitle
+    document.getElementById('sum-subtitle').textContent = `${exNames.length} Übungen · ${durationMins} Minuten`;
+
+    // Body map
+    document.getElementById('sum-body-map').innerHTML =
+      `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+        <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--text2);margin-bottom:2px;">VORNE</div>
+        ${buildBodySVG(frontActive,'front',100)}
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+        <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--text2);margin-bottom:2px;">HINTEN</div>
+        ${buildBodySVG(backActive,'back',100)}
+      </div>`;
+
+    // Legend
+    document.getElementById('sum-muscle-chips').innerHTML =
+      [...primaryMuscles].map(m=>`<span style="background:rgba(139,92,246,.2);color:#a78bfa;border:1px solid rgba(139,92,246,.3);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700;">${m}</span>`).join('')+
+      [...secondaryMuscles].map(m=>`<span style="background:rgba(255,255,255,.05);color:var(--text2);border:1px solid var(--border);border-radius:20px;padding:4px 10px;font-size:11px;">${m}</span>`).join('');
+
+    // Exercise breakdown
+    document.getElementById('sum-exercises').innerHTML = exNames.map(name=>{
+      const d=byEx[name];
+      const maxW=Math.max(...d.sets.map(s=>s.weight_kg||0));
+      const totalReps=d.sets.reduce((a,s)=>a+(s.reps||0),0);
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
+        <div>
+          <div style="font-weight:700;font-size:14px;">${esc(name)}</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px;">${d.sets.length} Sätze · ${totalReps} Wdh</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-weight:800;font-size:15px;" class="text-gradient">${maxW}kg</div>
+          <div style="font-size:11px;color:var(--text2);">max</div>
+        </div>
+      </div>`;
+    }).join('');
+
+    document.getElementById('workout-summary-modal').classList.add('show');
+  }catch(e){
+    console.error(e);
+    toast(`🎉 ${durationMins} Min – gut gemacht!`);
+    await loadAll();
+  }
 }
 
 // ── STATS ──
@@ -1366,5 +1652,37 @@ document.getElementById('auth-pw').addEventListener('keydown',e=>{if(e.key==='En
   }
 })();
 </script>
+
+<!-- ═══════════════════════════════ WORKOUT SUMMARY ══════════════════ -->
+<div class="modal-overlay" id="workout-summary-modal">
+  <div class="modal" style="max-height:95vh;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+    <div style="text-align:center;margin-bottom:20px;">
+      <div style="font-size:48px;margin-bottom:8px;">🏆</div>
+      <div style="font-size:22px;font-weight:900;" class="text-gradient">Training abgeschlossen!</div>
+      <div style="font-size:13px;color:var(--text2);margin-top:4px;" id="sum-subtitle"></div>
+    </div>
+    <!-- Quick stats row -->
+    <div class="stats-row" id="sum-stats" style="margin-bottom:16px;"></div>
+    <!-- Body map -->
+    <div class="card" style="margin:0 0 16px;">
+      <div class="card-label" style="margin-bottom:12px;">💪 Trainierte Muskeln</div>
+      <div id="sum-body-map" style="display:flex;gap:12px;justify-content:center;"></div>
+      <div id="sum-muscle-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;"></div>
+    </div>
+    <!-- Exercise breakdown -->
+    <div class="card" style="margin:0 0 16px;">
+      <div class="card-label" style="margin-bottom:12px;">📊 Übungsübersicht</div>
+      <div id="sum-exercises"></div>
+    </div>
+    <!-- PRs -->
+    <div id="sum-prs-wrap" style="display:none;">
+      <div class="card" style="margin:0 0 16px;background:rgba(251,191,36,.05);border-color:rgba(251,191,36,.2);">
+        <div class="card-label" style="color:#fbbf24;margin-bottom:10px;">🏅 Neue Bestleistungen!</div>
+        <div id="sum-prs"></div>
+      </div>
+    </div>
+    <button onclick="closeModal('workout-summary-modal');loadAll();" style="width:100%;background:linear-gradient(135deg,#7c3aed,#22d3ee);color:#fff;border:none;padding:16px;border-radius:16px;font-size:16px;font-weight:900;cursor:pointer;font-family:var(--font);">Weiter 💪</button>
+  </div>
+</div>
 </body>
 </html>
