@@ -1234,7 +1234,10 @@ async function startWorkout(day){
   if(!exs.length){toast('Keine Übungen in diesem Tag');return;}
   const sess=await post('workout_sessions',{day_id:day.id,date:new Date().toISOString().split('T')[0],user_id:user.id});
   wSession={id:sess[0].id,dayName:day.name,exercises:exs,sets:{}};
-  exs.forEach(e=>{wSession.sets[e.id]=Array.from({length:e.sets},(_,i)=>({num:i+1,weight:'',reps:e.reps,done:false}));});
+  exs.forEach(e=>{
+    const realId=e.exercise_id; // use actual exercises table UUID
+    wSession.sets[realId]=Array.from({length:e.sets},(_,i)=>({num:i+1,weight:'',reps:e.reps,done:false}));
+  });
   wSecs=0;clearInterval(wTimerInt);
   wTimerInt=setInterval(()=>{wSecs++;const m=Math.floor(wSecs/60),s=wSecs%60;const el=document.getElementById('workout-timer');if(el)el.textContent=`${m}:${s.toString().padStart(2,'0')}`;},1000);
   document.getElementById('workout-day-name').textContent=day.name;
@@ -1244,7 +1247,10 @@ async function startWorkout(day){
 }
 
 function renderWorkout(){
-  document.getElementById('workout-ex-container').innerHTML=wSession.exercises.map(ex=>`
+  document.getElementById('workout-ex-container').innerHTML=wSession.exercises.map(ex=>{
+    const rid=ex.exercise_id; // real exercise UUID
+    const sets=wSession.sets[rid]||[];
+    return `
     <div style="padding:20px 16px 0;">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
         <div class="item-icon" style="background:${mg(ex.exercises?.muscle_group||'')};width:46px;height:46px;border-radius:14px;font-size:20px;">${me(ex.exercises?.muscle_group||'')}</div>
@@ -1259,15 +1265,16 @@ function renderWorkout(){
         <div style="text-align:center;font-size:9px;color:var(--text2);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">WDH</div>
         <div></div>
       </div>
-      ${wSession.sets[ex.id].map((set,i)=>`
+      ${sets.map((set,i)=>`
         <div style="display:grid;grid-template-columns:32px 1fr 1fr 42px;gap:8px;margin-bottom:10px;align-items:center;">
-          <div class="set-circle${set.done?' done':''}" id="sc-${ex.id}-${i}">${set.num}</div>
-          <input id="w-${ex.id}-${i}" class="set-input" type="number" placeholder="0" value="${set.weight}" min="0" step="0.5" inputmode="decimal" oninput="sv('${ex.id}',${i},'weight',this.value)">
-          <input id="r-${ex.id}-${i}" class="set-input" type="number" placeholder="${set.reps}" value="${set.reps}" min="1" inputmode="numeric" oninput="sv('${ex.id}',${i},'reps',this.value)">
-          <button class="check-btn${set.done?' done':''}" id="cb-${ex.id}-${i}" onclick="toggleSet('${ex.id}',${i})">✓</button>
+          <div class="set-circle${set.done?' done':''}" id="sc-${rid}-${i}">${set.num}</div>
+          <input id="w-${rid}-${i}" class="set-input" type="number" placeholder="0" value="${set.weight}" min="0" step="0.5" inputmode="decimal" oninput="sv('${rid}',${i},'weight',this.value)">
+          <input id="r-${rid}-${i}" class="set-input" type="number" placeholder="${set.reps}" value="${set.reps}" min="1" inputmode="numeric" oninput="sv('${rid}',${i},'reps',this.value)">
+          <button class="check-btn${set.done?' done':''}" id="cb-${rid}-${i}" onclick="toggleSet('${rid}',${i})">✓</button>
         </div>`).join('')}
     </div>
-    <div style="height:1px;background:var(--border);margin:20px 0 0;"></div>`).join('');
+    <div style="height:1px;background:var(--border);margin:20px 0 0;"></div>`;
+  }).join('');
 }
 
 function sv(eid,i,f,v){wSession.sets[eid][i][f]=v;}
