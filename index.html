@@ -1168,17 +1168,39 @@ async function startWorkout(day){
   const exs=await get('day_exercises',`?day_id=eq.${day.id}&select=*,exercises(*)`);
   if(!exs.length){toast('Keine Übungen in diesem Tag');return;}
   const sess=await post('workout_sessions',{day_id:day.id,date:new Date().toISOString().split('T')[0],user_id:user.id});
-  wSession={id:sess[0].id,dayName:day.name,exercises:exs,sets:{}};
+
+  // Load last session for this day to show previous weights
+  const prevSess=await get('workout_sessions',`?day_id=eq.${day.id}&order=date.desc&limit=2&select=id,date`);
+  let prevSets={};
+  const lastSess=prevSess.find(s=>s.id!==sess[0].id);
+  if(lastSess){
+    const ps=await get('session_sets',`?session_id=eq.${lastSess.id}&select=*`);
+    ps.forEach(s=>{
+      if(!prevSets[s.exercise_id])prevSets[s.exercise_id]=[];
+      prevSets[s.exercise_id].push(s);
+    });
+  }
+
+  wSession={id:sess[0].id,dayName:day.name,exercises:exs,sets:{},prevSets};
   exs.forEach(e=>{
-    const realId=e.exercise_id; // use actual exercises table UUID
-    wSession.sets[realId]=Array.from({length:e.sets},(_,i)=>({num:i+1,weight:'',reps:e.reps,done:false}));
+    const realId=e.exercise_id;
+    const prev=prevSets[realId]||[];
+    wSession.sets[realId]=Array.from({length:e.sets},(_,i)=>({
+      num:i+1,
+      weight: prev[i]?.weight_kg||'',
+      reps: prev[i]?.reps||e.reps,
+      done:false,
+      prevWeight: prev[i]?.weight_kg||null,
+      prevReps: prev[i]?.reps||null
+    }));
   });
   wSecs=0;clearInterval(wTimerInt);
   wTimerInt=setInterval(()=>{wSecs++;const m=Math.floor(wSecs/60),s=wSecs%60;const el=document.getElementById('workout-timer');if(el)el.textContent=`${m}:${s.toString().padStart(2,'0')}`;},1000);
   document.getElementById('workout-day-name').textContent=day.name;
   renderWorkout();
   document.getElementById('active-workout').style.display='flex';
-  toast('Training gestartet! 💪');
+  if(lastSess) toast(`📋 Letztes Training: ${new Date(lastSess.date).toLocaleDateString('de-DE',{day:'numeric',month:'short'})}`);
+  else toast('Training gestartet! 💪');
 }
 
 function renderWorkout(){
@@ -1201,12 +1223,14 @@ function renderWorkout(){
         <div></div>
       </div>
       ${sets.map((set,i)=>`
-        <div style="display:grid;grid-template-columns:32px 1fr 1fr 42px;gap:8px;margin-bottom:10px;align-items:center;">
+        <div style="display:grid;grid-template-columns:32px 1fr 1fr 42px;gap:8px;margin-bottom:${set.prevWeight?'4px':'10px'};align-items:center;">
           <div class="set-circle${set.done?' done':''}" id="sc-${rid}-${i}">${set.num}</div>
-          <input id="w-${rid}-${i}" class="set-input" type="number" placeholder="0" value="${set.weight}" min="0" step="0.5" inputmode="decimal" oninput="sv('${rid}',${i},'weight',this.value)">
-          <input id="r-${rid}-${i}" class="set-input" type="number" placeholder="${set.reps}" value="${set.reps}" min="1" inputmode="numeric" oninput="sv('${rid}',${i},'reps',this.value)">
+          <input id="w-${rid}-${i}" class="set-input" type="number" placeholder="${set.prevWeight||0}" value="${set.weight}" min="0" step="0.5" inputmode="decimal" oninput="sv('${rid}',${i},'weight',this.value)">
+          <input id="r-${rid}-${i}" class="set-input" type="number" placeholder="${set.prevReps||set.reps}" value="${set.reps}" min="1" inputmode="numeric" oninput="sv('${rid}',${i},'reps',this.value)">
           <button class="check-btn${set.done?' done':''}" id="cb-${rid}-${i}" onclick="toggleSet('${rid}',${i})">✓</button>
-        </div>`).join('')}
+        </div>
+        ${set.prevWeight?`<div style="display:grid;grid-template-columns:32px 1fr 1fr 42px;gap:8px;margin-bottom:8px;"><div></div><div style="text-align:center;font-size:10px;color:rgba(109,40,217,0.7);font-weight:700;">↑ ${set.prevWeight} kg</div><div style="text-align:center;font-size:10px;color:rgba(109,40,217,0.7);font-weight:700;">${set.prevReps} Wdh</div><div></div></div>`:''}
+        `).join('')}
     </div>
     <div style="height:1px;background:var(--border);margin:20px 0 0;"></div>`;
   }).join('');
@@ -1375,19 +1399,31 @@ async function showWorkoutSummary(durationMins){
 }
 
 // ── STATS ──
+// ── STATS DATA CACHE ──
+let statsCache = null;
+
 async function renderStats(){
   const c=document.getElementById('stats-content');if(!c)return;
   c.innerHTML='<div class="empty"><div class="empty-icon">📊</div><div class="empty-title">Lade...</div></div>';
   try{
     const[sess,sets]=await Promise.all([
-      get('workout_sessions','?order=date.desc&limit=50&select=*'),
-      get('session_sets','?order=created_at.desc&limit=300&select=*,exercises(name,muscle_group)')
+      get('workout_sessions','?order=date.desc&limit=100&select=*,workout_days(name)'),
+      get('session_sets','?order=created_at.asc&limit=1000&select=*,exercises(name,muscle_group)')
     ]);
+    statsCache={sess,sets};
     if(!sess.length){c.innerHTML='<div class="empty"><div class="empty-icon">📊</div><div class="empty-title">Noch keine Daten</div><div class="empty-sub">Starte dein erstes Workout!</div></div>';return;}
-    const vol=sets.reduce((a,s)=>a+(s.weight_kg*s.reps),0);
-    const byEx={};sets.forEach(s=>{const n=s.exercises?.name||'?';if(!byEx[n])byEx[n]=[];byEx[n].push(s);});
+    const vol=sets.reduce((a,s)=>a+(+(s.weight_kg||0))*(+(s.reps||0)),0);
     const wm={};sess.forEach(s=>{const w=`KW${wn(new Date(s.date))}`;wm[w]=(wm[w]||0)+1;});
     const wl=Object.keys(wm).slice(-8),wv=wl.map(w=>wm[w]);
+
+    // Build byEx for strength overview
+    const byEx={};
+    sets.forEach(s=>{
+      const n=s.exercises?.name||'?';
+      if(!byEx[n])byEx[n]=[];
+      byEx[n].push(s);
+    });
+
     c.innerHTML=`
       <div class="stats-row">
         <div class="stat"><div class="stat-num text-gradient">${sess.length}</div><div class="stat-label">Workouts</div></div>
@@ -1395,24 +1431,32 @@ async function renderStats(){
         <div class="stat"><div class="stat-num text-gradient">${Math.round(vol/1000*10)/10}t</div><div class="stat-label">Volumen</div></div>
       </div>
       <div class="card"><div class="card-label">Workouts pro Woche</div><div class="chart-wrap"><canvas id="chart-w"></canvas></div></div>
+
       <div class="sec-title">Kraftentwicklung</div>
-      ${Object.entries(byEx).slice(0,6).map(([name,s])=>{
-        const mx=Math.max(...s.map(x=>x.weight_kg||0)),lw=s[0]?.weight_kg||0,pct=mx>0?Math.round(lw/mx*100):100;
-        return`<div class="card" style="margin:0 16px 10px;">
+      ${Object.entries(byEx).slice(0,10).map(([name,s])=>{
+        const mx=Math.max(...s.map(x=>+(x.weight_kg||0)));
+        const lw=+(s[s.length-1]?.weight_kg||0);
+        const pct=mx>0?Math.round(lw/mx*100):100;
+        return`<div class="card" style="margin:0 16px 10px;cursor:pointer;" onclick="showExerciseStats('${esc(name).replace(/'/g,"\'")}')">
           <div style="display:flex;justify-content:space-between;align-items:center;">
             <div style="font-weight:800;font-size:15px;letter-spacing:-.3px;">${esc(name)}</div>
-            <div style="font-size:24px;font-weight:900;font-family:var(--mono);" class="text-gradient">${lw} kg</div>
+            <div style="font-size:22px;font-weight:900;font-family:var(--mono);" class="text-gradient">${lw} kg</div>
           </div>
           <div style="font-size:12px;color:var(--text2);margin-top:3px;">Max: ${mx} kg · ${s.length} Sätze</div>
           <div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div>
         </div>`;}).join('')}
+
       <div class="sec-title">Letzte Trainings</div>
-      <div class="list-wrap">${sess.slice(0,8).map(s=>`
-        <div class="list-item" style="cursor:default;">
+      <div class="list-wrap">${sess.slice(0,15).map(s=>`
+        <div class="list-item" onclick="showSessionDetail('${s.id}')" style="cursor:pointer;">
           <div class="item-icon" style="background:var(--surface3);">📅</div>
-          <div class="item-info"><div class="item-title">${new Date(s.date).toLocaleDateString('de-DE',{weekday:'short',day:'numeric',month:'short'})}</div><div class="item-sub">${s.duration_minutes?s.duration_minutes+' Min':'–'}</div></div>
-          <span class="badge badge-purple">${s.duration_minutes?'✓':'–'}</span>
+          <div class="item-info">
+            <div class="item-title">${new Date(s.date).toLocaleDateString('de-DE',{weekday:'short',day:'numeric',month:'short'})}</div>
+            <div class="item-sub">${s.workout_days?.name||'–'} · ${s.duration_minutes?s.duration_minutes+' Min':'–'}</div>
+          </div>
+          <span class="badge badge-purple">›</span>
         </div>`).join('')}</div>`;
+
     setTimeout(()=>{
       const ctx=document.getElementById('chart-w');if(!ctx)return;
       if(charts['w'])charts['w'].destroy();
@@ -1421,6 +1465,172 @@ async function renderStats(){
     },100);
   }catch(e){c.innerHTML=`<div class="empty"><div class="empty-icon">❌</div><div class="empty-title">Fehler</div><div class="empty-sub">${e.message}</div></div>`;}
 }
+
+// ── SESSION DETAIL MODAL ──
+async function showSessionDetail(sessionId){
+  const sets = await get('session_sets',`?session_id=eq.${sessionId}&order=created_at.asc&select=*,exercises(name,muscle_group)`);
+  const sess = statsCache?.sess?.find(s=>s.id===sessionId);
+  if(!sets.length){toast('Keine Daten für dieses Training');return;}
+
+  const byEx={};
+  sets.forEach(s=>{
+    const n=s.exercises?.name||'?';
+    if(!byEx[n])byEx[n]={sets:[],muscle:s.exercises?.muscle_group||''};
+    byEx[n].sets.push(s);
+  });
+
+  const dateStr = sess ? new Date(sess.date).toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'}) : '';
+  const totalVol = sets.reduce((a,s)=>a+(+(s.weight_kg||0))*(+(s.reps||0)),0);
+
+  const html=`
+    <div style="padding:20px 16px 0;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+        <button onclick="closeModal('session-detail-modal')" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">‹</button>
+        <div>
+          <div style="font-weight:900;font-size:18px;">${dateStr}</div>
+          <div style="font-size:12px;color:var(--text2);">${sess?.workout_days?.name||''} · ${sess?.duration_minutes||0} Min · ${Math.round(totalVol)} kg Volumen</div>
+        </div>
+      </div>
+      ${Object.entries(byEx).map(([name,data])=>{
+        const maxW=Math.max(...data.sets.map(s=>+(s.weight_kg||0)));
+        const totalReps=data.sets.reduce((a,s)=>a+(+(s.reps||0)),0);
+        return`<div class="card" style="margin:0 0 12px;cursor:pointer;" onclick="showExerciseStats('${esc(name).replace(/'/g,"\'")}')">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div style="font-weight:800;font-size:15px;">${esc(name)}</div>
+            <div style="font-size:12px;color:var(--text2);">${data.muscle}</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(${data.sets.length},1fr);gap:6px;">
+            ${data.sets.map((s,i)=>`
+              <div style="background:var(--surface3);border-radius:10px;padding:8px 4px;text-align:center;">
+                <div style="font-size:9px;color:var(--text2);font-weight:700;margin-bottom:4px;">Satz ${i+1}</div>
+                <div style="font-size:14px;font-weight:900;font-family:var(--mono);color:#22d3ee;">${s.weight_kg||0}<span style="font-size:9px;color:var(--text2);">kg</span></div>
+                <div style="font-size:11px;color:var(--text2);">${s.reps||0} Wdh</div>
+              </div>`).join('')}
+          </div>
+          <div style="display:flex;gap:16px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+            <div style="font-size:12px;color:var(--text2);">Max: <span style="color:var(--text);font-weight:700;">${maxW} kg</span></div>
+            <div style="font-size:12px;color:var(--text2);">Wdh: <span style="color:var(--text);font-weight:700;">${totalReps}</span></div>
+            <div style="font-size:12px;color:var(--text2);">Vol: <span style="color:var(--text);font-weight:700;">${Math.round(data.sets.reduce((a,s)=>a+(+(s.weight_kg||0))*(+(s.reps||0)),0))} kg</span></div>
+            <div style="font-size:11px;color:#6d28d9;font-weight:700;margin-left:auto;">Verlauf ›</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+
+  showModal('session-detail-modal',html);
+}
+
+// ── EXERCISE STATS MODAL ──
+async function showExerciseStats(exName){
+  // Get all sets for this exercise across all sessions
+  const allSets = await get('session_sets',`?order=created_at.asc&select=*,exercises(name),workout_sessions(date)&exercises.name=eq.${encodeURIComponent(exName)}`);
+
+  // Fallback: filter from cache
+  let sets = statsCache?.sets?.filter(s=>s.exercises?.name===exName) || [];
+  if(!sets.length){toast('Keine Daten');return;}
+
+  // Group by session
+  const bySess={};
+  sets.forEach(s=>{
+    const sid=s.session_id;
+    if(!bySess[sid])bySess[sid]={date:s.created_at?.split('T')[0]||'',sets:[]};
+    bySess[sid].sets.push(s);
+  });
+
+  const sessions=Object.values(bySess).sort((a,b)=>a.date.localeCompare(b.date));
+  // Per session: max weight, total reps, volume
+  const labels=sessions.map(s=>new Date(s.date).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'}));
+  const maxWeights=sessions.map(s=>Math.max(...s.sets.map(x=>+(x.weight_kg||0))));
+  const totalReps=sessions.map(s=>s.sets.reduce((a,x)=>a+(+(x.reps||0)),0));
+  const volumes=sessions.map(s=>Math.round(s.sets.reduce((a,x)=>a+(+(x.weight_kg||0))*(+(x.reps||0)),0)));
+
+  const html=`
+    <div style="padding:20px 16px 0;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+        <button onclick="closeModal('ex-stats-modal')" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">‹</button>
+        <div style="font-weight:900;font-size:18px;">${esc(exName)}</div>
+      </div>
+
+      <!-- Chart tabs -->
+      <div id="ex-chart-tabs" style="display:flex;gap:8px;margin-bottom:16px;">
+        <button onclick="switchExChart('weight')" id="tab-weight" style="flex:1;padding:8px;border-radius:10px;border:none;background:#6d28d9;color:#fff;font-weight:700;font-size:12px;cursor:pointer;">Gewicht</button>
+        <button onclick="switchExChart('reps')" id="tab-reps" style="flex:1;padding:8px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-weight:700;font-size:12px;cursor:pointer;">Wdh</button>
+        <button onclick="switchExChart('volume')" id="tab-volume" style="flex:1;padding:8px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-weight:700;font-size:12px;cursor:pointer;">Volumen</button>
+      </div>
+      <div class="card" style="margin:0 0 16px;"><div class="chart-wrap" style="height:180px;"><canvas id="chart-ex"></canvas></div></div>
+
+      <!-- Stats summary -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
+        <div style="background:var(--surface2);border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:10px;color:var(--text2);font-weight:700;margin-bottom:4px;">MAX</div>
+          <div style="font-size:20px;font-weight:900;font-family:var(--mono);color:#22d3ee;">${Math.max(...maxWeights)}<span style="font-size:11px;color:var(--text2);"> kg</span></div>
+        </div>
+        <div style="background:var(--surface2);border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:10px;color:var(--text2);font-weight:700;margin-bottom:4px;">SESSIONS</div>
+          <div style="font-size:20px;font-weight:900;font-family:var(--mono);color:#6d28d9;">${sessions.length}</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:10px;color:var(--text2);font-weight:700;margin-bottom:4px;">MAX VOL</div>
+          <div style="font-size:20px;font-weight:900;font-family:var(--mono);color:#a855f7;">${Math.max(...volumes)}<span style="font-size:11px;color:var(--text2);"> kg</span></div>
+        </div>
+      </div>
+
+      <!-- History per session -->
+      <div class="sec-title" style="padding:0;margin-bottom:10px;">Verlauf</div>
+      ${[...sessions].reverse().map(s=>{
+        const mw=Math.max(...s.sets.map(x=>+(x.weight_kg||0)));
+        const vol=Math.round(s.sets.reduce((a,x)=>a+(+(x.weight_kg||0))*(+(x.reps||0)),0));
+        const dateStr=new Date(s.date).toLocaleDateString('de-DE',{weekday:'short',day:'numeric',month:'short'});
+        return`<div class="card" style="margin:0 0 10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div style="font-size:13px;font-weight:700;">${dateStr}</div>
+            <div style="font-size:11px;color:var(--text2);">${s.sets.length} Sätze · ${vol} kg Vol</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(${s.sets.length},1fr);gap:5px;">
+            ${s.sets.map((x,i)=>`
+              <div style="background:var(--surface3);border-radius:8px;padding:6px 3px;text-align:center;">
+                <div style="font-size:8px;color:var(--text2);font-weight:700;">${i+1}</div>
+                <div style="font-size:13px;font-weight:900;font-family:var(--mono);color:#22d3ee;">${x.weight_kg||0}</div>
+                <div style="font-size:10px;color:var(--text2);">${x.reps||0}×</div>
+              </div>`).join('')}
+          </div>
+        </div>`;}).join('')}
+    </div>`;
+
+  // Store chart data globally for tab switching
+  window._exChartData={labels,maxWeights,totalReps,volumes};
+  window._exChartMode='weight';
+  showModal('ex-stats-modal',html);
+  setTimeout(()=>renderExChart('weight'),100);
+}
+
+function switchExChart(mode){
+  window._exChartMode=mode;
+  ['weight','reps','volume'].forEach(m=>{
+    const btn=document.getElementById(`tab-${m}`);
+    if(btn){
+      btn.style.background=m===mode?'#6d28d9':'var(--surface2)';
+      btn.style.color=m===mode?'#fff':'var(--text2)';
+      btn.style.border=m===mode?'none':'1px solid var(--border)';
+    }
+  });
+  renderExChart(mode);
+}
+
+function renderExChart(mode){
+  const d=window._exChartData;if(!d)return;
+  const ctx=document.getElementById('chart-ex');if(!ctx)return;
+  if(charts['ex'])charts['ex'].destroy();
+  const dataMap={weight:{data:d.maxWeights,label:'Max Gewicht (kg)',color:'#22d3ee'},reps:{data:d.totalReps,label:'Wiederholungen',color:'#a855f7'},volume:{data:d.volumes,label:'Volumen (kg)',color:'#6d28d9'}};
+  const dm=dataMap[mode];
+  charts['ex']=new Chart(ctx,{
+    type:'line',
+    data:{labels:d.labels,datasets:[{data:dm.data,label:dm.label,borderColor:dm.color,backgroundColor:dm.color+'22',fill:true,tension:0.4,pointBackgroundColor:dm.color,pointRadius:5,pointHoverRadius:7,borderWidth:2.5}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.parsed.y} ${mode==='weight'?'kg':mode==='volume'?'kg':'Wdh'}`}}},scales:{x:{ticks:{color:'#7070a0',font:{size:10}},grid:{color:'rgba(255,255,255,.03)'},border:{color:'transparent'}},y:{ticks:{color:'#7070a0',font:{size:10}},grid:{color:'rgba(255,255,255,.03)'},border:{color:'transparent'}}}}
+  });
+}
+
+
 
 // ── PROFILE ──
 function calcBMI(w,h){if(!w||!h)return null;return(w/((h/100)**2));}
@@ -1640,6 +1850,19 @@ function saveSettings(){
 
 // ── HELPERS ──
 function closeModal(id){document.getElementById(id).classList.remove('show');}
+function showModal(id,innerHtml){
+  let el=document.getElementById(id);
+  if(!el){
+    el=document.createElement('div');
+    el.className='modal-overlay';
+    el.id=id;
+    el.innerHTML=`<div class="modal-sheet" style="max-height:90vh;overflow-y:auto;" onclick="event.stopPropagation()"></div>`;
+    el.addEventListener('click',()=>closeModal(id));
+    document.body.appendChild(el);
+  }
+  el.querySelector('.modal-sheet').innerHTML=innerHtml;
+  el.classList.add('show');
+}
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
 function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function wn(d){const j=new Date(d.getFullYear(),0,1);return Math.ceil((((d-j)/86400000)+j.getDay()+1)/7);}
