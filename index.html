@@ -241,6 +241,15 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .rest-presets{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
 .rest-preset{padding:10px 16px;border-radius:12px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font);transition:.2s;}
 .rest-preset.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+  /* Week Calendar */
+  #cal-week-days > div {
+    transition: transform .15s, box-shadow .15s;
+    user-select: none;
+  }
+  #cal-week-days > div:active {
+    transform: scale(0.94);
+  }
 </style>
 </head>
 <body>
@@ -933,22 +942,125 @@ function buildMiniBodySVG(primaryMuscle, size) {
 }
 
 
+
+// ── EXERCISE KNOWLEDGE BASE ──
+const EXERCISE_DB = {
+  // BRUST
+  'Bankdrücken Langhantel': {
+    steps:['Lege dich flach auf die Bank. Augen unter der Stange. Schulterblätter zusammenziehen und in die Bank drücken – das schafft eine stabile Basis.','Greife die Stange etwas breiter als schulterbreit (ca. 80 cm). Daumen umschließen die Stange (kein "falscher Griff"). Handgelenke gerade halten.','Stange aus der Ablage nehmen. Arme gestreckt über der Brust. Tief einatmen und Bauch anspannen.','Stange kontrolliert zur unteren Brust senken (ca. 3 Sekunden). Ellenbogen ca. 45–75° vom Körper, nicht ausflaren.','Kurze Pause auf der Brust, dann explosiv nach oben drücken. Ausatmen beim Hochdrücken. Nicht auf der Brust abfedern!'],
+    mistakes:['Ellenbogen zu weit ausgestreckt (90°) – erhöht das Verletzungsrisiko an der Schulter','Stange zu hoch oder zu tief absenken – Ziel ist die untere Brust','Rücken übermäßig durchbiegen – kleine natürliche Wölbung ist ok, extremes Brücken nicht','Füße von der Bank heben – stabiler Stand schafft Kraft'],
+    tips:[{icon:'💡',label:'PROFI-TIPP',text:'Drücke die Fersen aktiv in den Boden und stelle dir vor, du würdest die Bank auseinanderreißen – das aktiviert die Brustmuskulatur maximal.'},{icon:'🔥',label:'PROGRESSION',text:'Füge wöchentlich 2.5 kg hinzu. Wenn du die Wiederholungen nicht mehr schaffst, bleib beim gleichen Gewicht bis du es 3×10 sauber schaffst.'},{icon:'🫁',label:'ATMUNG',text:'Einatmen beim Senken, ausatmen beim Drücken. Niemals die Luft komplett anhalten.'}]
+  },
+  'Kniebeugen Langhantel': {
+    steps:['Stange auf den oberen Trapezmuskel legen (High Bar) oder etwas tiefer auf den hinteren Deltoids (Low Bar). Nicht auf der Halswirbelsäule!','Schulterbreiter oder etwas breiterer Stand. Fußspitzen leicht nach außen (15–30°). Gewicht gleichmäßig auf ganzer Fußfläche.','Tief einatmen, Bauch anspannen (Valsalva-Manöver). Schulterblätter zusammenziehen, Brust raus, Blick nach vorne.','Knie in Richtung Fußspitzen drücken (nicht nach innen fallen lassen). Hüfte gleichzeitig nach hinten und unten bewegen.','Tief hinunter bis Oberschenkel mindestens parallel zum Boden. Fersen bleiben am Boden. Dann explosiv hoch drücken.'],
+    mistakes:['Knie fallen nach innen (Valgus) – schwächt die Kraft und verletzt das Knie','Fersen heben sich – deutet auf mangelnde Knöchelflexibilität hin, Einlagen oder erhöhte Fersen helfen','Oberkörper fällt zu weit nach vorne – Rumpf zu schwach oder zu wenig Beweglichkeit','Nicht tief genug gehen – mindestens parallel, besser tiefer für maximale Muskelaktivierung'],
+    tips:[{icon:'💡',label:'PROFI-TIPP',text:'Stelle dir vor, du würdest den Boden unter dir auseinanderdrücken – das aktiviert die Hüftabduktoren und verhindert Knie-Valgus.'},{icon:'🔥',label:'TIEFE',text:'Tiefe Kniebeugen aktivieren den Gluteus maximus um bis zu 25% mehr als parallele Kniebeugen. Arbeite an deiner Beweglichkeit!'},{icon:'🫁',label:'BAUCHSPANNUNG',text:'Bauchwand beim Heruntergehen anspannen, als würdest du einen Schlag erwarten. Diese Spannung schützt die Wirbelsäule.'}]
+  },
+  'Kreuzheben konventionell': {
+    steps:['Stange über den Mittelfuß (ca. 2–3 cm vom Schienbein). Schulterbreiter Stand, Fußspitzen leicht nach außen.','In die Hocke: Hüfte nach hinten und unten. Griff etwas breiter als schulterbreit, Daumen schließen um die Stange.','Schulterblätter zusammenziehen, Brust heraus, Rücken gerade. Stange nah am Körper halten – sie wird ans Schienbein streifen.','Tief einatmen, maximale Bauchspannung aufbauen. Gleichzeitig mit Beinen drücken und Hüfte vorstreckern – KEIN Reißen!','Stange bis zur Hüfte – Beine und Rücken strecken synchron. Oben kurz stehen, dann kontrolliert absetzen.'],
+    mistakes:['Rücken rundet sich – zu schweres Gewicht, sofort aufhören','Stange weit vom Körper – der Hebel wird länger, Rücken wird stärker belastet','Mit dem Rücken hochziehen statt mit den Beinen drücken','Zu schnell absetzen – kontrolliere immer die Exzentrik'],
+    tips:[{icon:'💡',label:'PROFI-TIPP',text:'Stell dir vor, du drückst den Boden weg, anstatt die Stange hochzuziehen. Dieser mentale Cue aktiviert die Beinmuskulatur besser.'},{icon:'⚡',label:'GRIFFKRAFT',text:'Nutze Chalk (Magnesia) für schwere Sätze. Alternativ: Hook Grip oder Straps ab >80% des Maximalgewichts.'},{icon:'🫁',label:'VALSALVA',text:'Tief einatmen, Bauch anspannen wie vor einem Schlag – dieser intraabdominale Druck schützt die Wirbelsäule bei schweren Lasten.'}]
+  },
+  'Klimmzüge Obergriff': {
+    steps:['Greife die Stange etwas breiter als schulterbreit. Obergriff (Handrücken zeigen zu dir). Arme vollständig gestreckt, Körper hängt frei.','Schulterblätter nach unten und hinten ziehen (Scapular Pull) bevor die Arme beugen – aktiviert den Latissimus.','Ellenbogen nach unten und außen führen, als würdest du sie zu den Hüften ziehen. Brust zur Stange bringen.','Kurze Pause oben, dann kontrolliert absenken – vollständige Streckung der Arme unten.','Kein Schwingen! Körper bleibt stabil, Core angespannt.'],
+    mistakes:['Kopf nach oben strecken statt Brust zur Stange bringen','Nicht vollständig absenken – verkürzte Bewegung bringt weniger Muskelwachstum','Schwingen und Momentum nutzen – nimm lieber ein Band zur Assistenz','Schulterblätter nicht aktivieren – dann werden die Arme überbelastet'],
+    tips:[{icon:'💡',label:'PROFI-TIPP',text:'Stelle dir vor, du würdest Zitronen in deinen Achseln ausquetschen – dieser Cue aktiviert den Latissimus perfekt.'},{icon:'🔥',label:'STEIGERUNG',text:'Kannst du 10+ saubere Klimmzüge: Füge Gewicht hinzu (Gürtel). Unter 5 Wdh: Nutze ein Widerstandsband oder den Assisted-Pull-Up-Automaten.'},{icon:'💪',label:'VARIATION',text:'Untergriff (Chin-Up) betont den Bizeps stärker, Neutralgriff ist gelenkschonender für die Schultern.'}]
+  },
+  'Schulterdrücken Langhantel stehend': {
+    steps:['Stange auf Schulterhöhe in einem Rack ablegen. Schulterbreiter Griff, Daumen um die Stange. Stange liegt auf den Deltoids/oberer Brust.','Füße schulterbreit, Knie leicht gebeugt. Gesäß und Bauch anspannen – keine Hohlkreuzhaltung!','Stange senkrecht nach oben drücken. Kopf leicht zurückziehen während die Stange vorbeikommt, dann wieder nach vorne.','Arme vollständig strecken oben. Ohren zwischen den Oberarmen – Stange direkt über dem Schwerpunkt.','Kontrolliert absenken. Die negative Phase (Absenken) ist genauso wichtig für Muskelwachstum.'],
+    mistakes:['Starkes Hohlkreuz – Rücken mit Bauchspannung gerade halten','Stange vor dem Körper vordrücken statt senkrecht – erhöht den Schulter-Impingement-Risiko','Knie pumpen (cheaten) beim Military Press – das ist dann kein reines Schulterdrücken mehr','Ellenbogen zu weit nach vorne – Griff zu eng oder mangelnde Schulterflexibilität'],
+    tips:[{icon:'💡',label:'PROFI-TIPP',text:'Drücke die Stange explosiv hoch und senke sie kontrolliert in 3 Sekunden ab. Die Exzentrik baut mehr Muskelmasse auf.'},{icon:'🔥',label:'CORE',text:'Eine starke Körpermitte ist das Fundament jedes Schulterdrückens. Trainiere Plank und Hollow Body regelmäßig.'},{icon:'🫁',label:'ATMUNG',text:'Einatmen vor dem Drücken, ausatmen beim Hochdrücken. Bei sehr schweren Gewichten: Valsalva-Manöver anwenden.'}]
+  },
+  'Hip Thrust Langhantel': {
+    steps:['Schulterblätter auf einer stabilen Bank (ca. 40-45 cm hoch). Stange über den Hüftknochen – nutze eine Schutzpolsterung!','Füße schulterbreit, ca. 30 cm vor den Hüften. Fußspitzen leicht nach außen. Knie bei 90° wenn oben.','Hüfte absenken, dann explosiv nach oben drücken. Rücken und Schulterblätter auf der Bank bleiben stabil.','Oben: Hüfte vollständig strecken, Gesäß maximal anspannen. Oberschenkel parallel zum Boden oder leicht höher.','Kontrolliert absenken bis kurz über dem Boden, nie komplett aufsetzen – Spannung halten.'],
+    mistakes:['Hüfte nicht vollständig strecken – nimmt den Gluteus aus der maximalen Kontraktion','Rücken überstrecken statt Hüfte zu heben – aktiviert Rückenstrecker statt Gluteus','Knie nach innen fallen – Widerstandsband um die Knie hilft','Zu schnelles Tempo – kurze Pause und maximale Kontraktion oben ist entscheidend'],
+    tips:[{icon:'💡',label:'PROFI-TIPP',text:'Drücke aktiv die Fersen in den Boden und schiebe die Knie leicht nach außen – das maximiert die Gluteus-Aktivierung.'},{icon:'🔥',label:'PAUSE-REP',text:'Halte die oberste Position 1-2 Sekunden und quetsche den Gluteus so fest wie möglich. Das verdoppelt die Muskelaktivierung.'},{icon:'⚡',label:'GEWICHT',text:'Hip Thrust ist eine der wenigen Übungen wo der Gluteus mit sehr hohem Gewicht trainiert werden kann. Sei mutig beim Steigern!'}]
+  },
+  'Arnold Press': {
+    steps:['Sitze aufrecht auf einer Schrägbank (90°). Hanteln in Schulterhöhe, Handflächen zeigen zu dir (Supinationsgriff) – das ist die Startposition.','Beginne die Hanteln nach oben zu drücken und rotiere gleichzeitig die Handgelenke nach außen. Die Rotation sollte bis zur Hälfte des Weges abgeschlossen sein.','In der oberen Position sind die Arme vollständig gestreckt, Handflächen zeigen von dir weg (Pronationsgriff). Hanteln fast berühren sich oben.','Kontrolliert absenken mit umgekehrter Rotation – Handflächen drehen sich wieder zu dir. 3 Sekunden Exzentrik.','Vollständige Streckung oben, volle Drehung zurück unten. Die Rotation ist das Geheimnis dieser Übung!'],
+    mistakes:['Rotation zu früh oder zu spät ausführen – sie sollte gleichmäßig während der gesamten Drückphase stattfinden','Rücken hohlmachen – Lendenwirbel durch Bauchspannung schützen','Hanteln nicht vollständig absenken – voller Bewegungsumfang ist entscheidend für Schulterentwicklung','Zu schwere Gewichte – diese Übung erfordert deutlich weniger Gewicht als normales Schulterdrücken'],
+    tips:[{icon:'💡',label:'PROFI-TIPP',text:'Der Arnold Press aktiviert alle drei Schulterköpfe (vorderer, seitlicher, hinterer Deltoid) durch die Rotation – wähle daher bewusst leichteres Gewicht als beim normalen Schulterdrücken.'},{icon:'🔥',label:'TEMPO',text:'Führe jeden Satz langsam aus (2-1-3 Sekunden: hoch-pause-runter). Das Tempo maximiert die Muskelspannung durch die gesamte Rotation.'},{icon:'💪',label:'VARIATION',text:'Für mehr Fokus auf den vorderen Deltoid: Starte mit den Ellenbogen weiter vorne. Für den seitlichen Deltoid: Starte mit den Ellenbogen mehr zur Seite.'}]
+  },
+  'Bizeps Curls Langhantel': {
+    steps:['Stehe aufrecht, schulterbreiter Stand. Langhantel mit Untergriff (Handflächen nach oben) schulterbreit greifen.','Ellenbogen eng an den Seiten des Körpers fixieren – sie bewegen sich während der gesamten Übung NICHT nach vorne oder hinten.','Stange zur Brust hochbeugen, nur der Unterarm bewegt sich. Langsam und kontrolliert, ohne Schwung.','Oben maximale Kontraktion: Stange auf Brusthöhe, Bizeps vollständig kontrahiert – kurze Pause halten.','Stange kontrolliert absenken (3 Sek) bis zur fast vollständigen Streckung. Niemals komplett durchstrecken unter Last.'],
+    mistakes:['Ellenbogen wandern nach vorne – das verkürzt den Bewegungsweg und reduziert die Bizeps-Aktivierung','Schwingen mit dem Rücken und Hüfte – bedeutet das Gewicht ist zu schwer','Stange bis zum Bauch absenken statt fast vollständig zu strecken','Zu schnell absenken – die Exzentrik (Absenken) ist für Muskelwachstum genauso wichtig wie die Kontraktion'],
+    tips:[{icon:'💡',label:'PROFI-TIPP',text:'Stelle dir vor, die Ellenbogen sind mit Nägeln an deinen Seiten fixiert. Dieser mentale Cue verhindert das Wandern der Ellenbogen und maximiert die Bizeps-Isolation.'},{icon:'🔥',label:'21er',text:'Eine klassische Technik: 7 Wiederholungen nur die untere Hälfte, 7 nur die obere Hälfte, 7 volle Wiederholungen = 21 Reps. Brutal effektiv für den Bizeps!'},{icon:'🫁',label:'MIND-MUSCLE',text:'Stell dir aktiv vor, wie sich dein Bizeps bei jeder Wiederholung zusammenfaltet. Diese Verbindung erhöht die Muskelaktivierung nachweislich.'}]
+  },
+  'Langhantelrudern': {
+    steps:['Hüftbreiter Stand, Knie leicht gebeugt. Rumpf nach vorne beugen (ca. 45°) – Rücken bleibt gerade, kein Rundrücken!','Langhantel mit Obergriff (Handrücken oben) oder Untergriff (Handflächen oben) schulterbreit greifen.','Stange hängt frei senkrecht zum Boden. Schulterblätter zuerst zurückziehen (Scapular Retraction), dann Arme beugen.','Stange zur unteren Brust/Bauch ziehen. Ellenbogen bleiben eng am Körper, nicht ausflaren. Oben kurz halten.','Kontrolliert absenken bis zur vollen Armstreckung – Dehnung im Latissimus spüren.'],
+    mistakes:['Rundrücken – der häufigste und gefährlichste Fehler, sofort aufhören','Rumpf aufrichten um das Gewicht mit Schwung zu heben – cheaten reduziert die Rückenbelastung','Ellenbogen zu weit ausspreizen – zieht Schultern statt Rücken','Schulterblätter nicht aktivieren – dann dominieren die Arme die Bewegung'],
+    tips:[{icon:'💡',label:'PROFI-TIPP',text:'Stell dir vor, du willst jemanden hinter dir mit den Ellenbogen treffen – diese Vorstellung aktiviert den Latissimus und oberen Rücken perfekt.'},{icon:'🔥',label:'GRIFFVARIANTEN',text:'Untergriff aktiviert den Bizeps mehr und erlaubt meist mehr Gewicht. Obergriff isoliert den Rücken besser. Neutralgriff (Parallelgriff) ist schulterfreundlicher.'},{icon:'⚡',label:'RÜCKENSPANNUNG',text:'Halte den Rücken die gesamte Zeit gerade gespannt – stell dir eine Linie von Kopf bis Steißbein vor, die sich nie krümmt.'}]
+  },
+  'Kurzhantel Curls': {
+    steps:['Stehe aufrecht oder sitze auf einer Bank. Kurzhanteln in beiden Händen, Arme hängen seitlich herunter.','Einen Arm nach dem anderen oder beide gleichzeitig beugen – mit der Version beginnen, die weniger Schwung erlaubt.','Beim Hochbeugen die Handfläche drehen (Supinieren): Start mit neutraler Handhaltung (Daumen nach oben), Endposition mit Handfläche nach oben.','Oben maximale Kontraktion, kleinen Finger aktiv nach außen drehen für noch mehr Bizeps-Aktivierung.','Kontrolliert absenken und dabei zurück in die Ausgangsposition drehen.'],
+    mistakes:['Schultern hochziehen oder nach vorne rollen','Ellenbogen wandern nach vorne','Alternierende Version zu schnell ausführen – jeder Arm verdient volle Aufmerksamkeit'],
+    tips:[{icon:'💡',label:'SUPINATION',text:'Die Drehbewegung (Supination) beim Hochbeugen ist das Entscheidende bei Kurzhantel-Curls. Sie aktiviert den Bizeps vollständiger als ein fester Untergriff.'},{icon:'🔥',label:'KONZENTRISCHE KONTRAKTION',text:'Halte oben 1-2 Sekunden und versuche den Bizeps so hart wie möglich anzuspannen. Diese isometrische Kontraktion fördert Muskelwachstum zusätzlich.'},{icon:'💪',label:'HAMMER CURL',text:'Führe einige Sätze mit neutralem Griff (Daumen nach oben, keine Rotation) aus – das trainiert den Brachialis, der den Arm optisch breiter macht.'}]
+  },
+  'Trizeps Dips': {
+    steps:['Hände auf zwei parallelen Griffen oder einer Bank, schulterbreit. Körper aufrecht für mehr Trizeps-Fokus (leicht nach vorne für Brust).','Knie leicht beugen oder Beine strecken. Schulterblätter zusammenziehen und nach unten ziehen – Schultern nicht hochziehen!','Kontrolliert absenken bis Oberarme parallel zum Boden (90° im Ellenbogen). Tiefer dehnt mehr, aber erhöht Schulterbelastung.','Explosiv zurück zur Ausgangsposition drücken. Arme nicht vollständig strecken (Ellenbogen leicht gebeugt lassen).','Gleichmäßige Atmung: Einatmen beim Absenken, ausatmen beim Hochdrücken.'],
+    mistakes:['Schultern hochziehen und nach vorne rollen – Schultergelenk wird überlastet','Zu tief absenken wenn Schultern noch schwach sind – arbeite dich langsam vor','Ellenbogen nach außen abspreizen – verringert Trizeps-Aktivierung','Körper zu weit nach vorne lehnen – macht es zur Brust- statt Trizepsübung'],
+    tips:[{icon:'💡',label:'KÖRPERHALTUNG',text:'Aufrechter Oberkörper = mehr Trizeps. Je mehr du dich nach vorne lehnst, desto mehr Brustmuskel wird eingesetzt. Entscheide bewusst welche Variante du willst.'},{icon:'🔥',label:'STEIGERUNG',text:'Körpergewicht zu leicht? Befestige einen Gewichtsgürtel oder halte eine Hantel zwischen den Beinen. Schon 10 kg extra machen einen enormen Unterschied.'},{icon:'⚡',label:'FÜR EINSTEIGER',text:'Zu schwer? Starte mit Bank-Dips (Hände auf Bank hinter dir, Füße auf Boden) und steigere dich zu freistehenden Dips.'}]
+  },
+};
+
+function getDetailedSteps(ex) {
+  const db = EXERCISE_DB[ex.name];
+  if(db?.steps) return db.steps;
+  // Fallback: parse from instructions field
+  if(ex.instructions){
+    const parts = ex.instructions.split(/[.!]/).map(s=>s.trim()).filter(s=>s.length>10);
+    if(parts.length>=2) return parts;
+  }
+  // Generic steps based on muscle group
+  const generic = {
+    'Brust':['Lege dich auf die Bank, Schulterblätter zusammenziehen und in die Bank drücken','Greife das Gerät etwas breiter als schulterbreit, Handgelenke gerade halten','Senke das Gewicht kontrolliert zur Brust (3 Sek), Ellenbogen ca. 60° vom Körper','Explodiere nach oben, atme beim Drücken aus','Vollständige Streckung oben, kurze Pause'],
+    'Rücken':['Aufrechte Körperhaltung, Schulterblätter zurückziehen','Griff etwas breiter als schulterbreit, Arm vollständig strecken als Ausgangslage','Schulterblätter zuerst aktivieren (Scapular Retraction), dann Arme beugen','Ellenbogen zur Hüfte führen, nicht nach hinten reißen','Kontrolliert zur Ausgangsposition zurück, Dehnung spüren'],
+    'Schultern':['Aufrechter Stand oder Sitz, Core angespannt','Hanteln/Stange auf Schulterhöhe als Startposition','Explosiv nach oben drücken, Arme vollständig strecken','Ohren zwischen den Oberarmen in der oberen Position','Kontrolliert absenken, 3 Sekunden für die Exzentrik'],
+    'Bizeps':['Stehend mit schulterbreitem Stand, Ellenbogen nah am Körper fixiert','Griff schulterbreit, Handflächen zeigen nach vorne','Hantel zur Schulter beugen ohne Ellenbogen zu bewegen oder zu schwingen','Oben maximale Kontraktion halten – Bizeps für 1 Sek anspannen','Kontrolliert absenken bis zur vollen Streckung'],
+    'Trizeps':['Körperhaltung aufrecht, Ellenbogen fixiert','Startposition: Ellenbogen gebeugt, Hantel/Kabel hinter dem Kopf oder oben','Arm vollständig strecken – Ellenbogen bewegt sich nicht','Maximale Kontraktion am Ende der Streckung halten','Kontrolliert zur Ausgangsposition zurück'],
+    'Bauch':['Auf dem Rücken liegen, Lendenwirbel leicht in den Boden drücken','Core spannen als ob ein Schlag kommt – das ist Grundspannung','Bewege dich aus dem Core heraus, nicht vom Nacken ziehen','Ausatmen bei der Anspannung/Kontraktion','Langsam zur Ausgangsposition, Spannung nie komplett lösen'],
+    'Oberschenkel vorne':['Stand schulterbreit, Fußspitzen leicht nach außen','Gewicht gleichmäßig auf ganzer Fußfläche verteilen','Knie in Richtung Fußspitzen drücken, nicht nach innen fallen lassen','Hüfte nach hinten und unten – tief bis Oberschenkel parallel','Explosiv aus den Fersen hochdrücken, Hüfte vollständig strecken oben'],
+    'Gesäß':['Stabile Ausgangsposition einnehmen, Core anspannen','Hüfte vollständig strecken als Hauptbewegung','Gesäß maximal kontrahieren oben – kurze Pause halten','Knie nie nach innen fallen lassen','Kontrollierte Rückbewegung, Spannung halten'],
+  };
+  return generic[ex.muscle_group] || ['Nimm die korrekte Ausgangsposition ein und spanne den Core an','Führe die Bewegung kontrolliert und im vollen Bewegungsumfang durch','Atme gleichmäßig: Einatmen in der Ausgangslage, ausatmen bei der Kontraktion','Fokussiere die Zielmuskulatur – stelle dir vor wie sie sich zusammenzieht','Kontrolliert zur Startposition zurück, Wiederhole'];
+}
+
+function getMistakes(ex){
+  const db = EXERCISE_DB[ex.name];
+  if(db?.mistakes) return db.mistakes;
+  const generic = {
+    'Brust':['Ellenbogen zu weit abspreizen (>90°) – Schultergelenk wird überlastet','Gewicht auf der Brust abfedern – reduziert Muskelspannung und erhöht Verletzungsrisiko','Schulterblätter nicht aktivieren – Schultern heben sich von der Bank'],
+    'Rücken':['Rücken rundet sich – immer Rücken gerade halten','Mit Schwung ziehen statt kontrolliert – Bizeps übernimmt die Arbeit','Schulterblätter nicht aktivieren – dann arbeiten hauptsächlich die Arme'],
+    'Schultern':['Hohlkreuz beim Drücken – Bauchspannung aufbauen','Ellenbogen zu weit nach vorne – zu enger Griff','Stange vor dem Kopf vorbeiführen statt dahinter'],
+    'Bizeps':['Ellenbogen wandern nach vorne – fixiere sie seitlich am Körper','Schwingen mit dem Rücken um Gewicht zu heben – zu schweres Gewicht','Nicht vollständig strecken unten – verkürzte Bewegung'],
+    'Trizeps':['Ellenbogen wandern nach außen – fixiere sie eng am Kopf','Rücken überstrecken – Core spannen','Zu kurze Bewegung – vollständig strecken für maximale Aktivierung'],
+    'Bauch':['Nacken zieht statt Bauch kontrahiert – Hände neben die Ohren, nicht im Nacken','Impuls nutzen statt Muskelkraft','Zu schnelles Tempo – langsam und kontrolliert ist effektiver'],
+  };
+  return generic[ex.muscle_group] || ['Zu schweres Gewicht wählen und Form aufgeben','Bewegung beschleunigen statt kontrolliert ausführen','Atmung vergessen – atme immer gleichmäßig'];
+}
+
+function getExerciseTips(ex){
+  const db = EXERCISE_DB[ex.name];
+  if(db?.tips) return db.tips;
+  return [
+    {icon:'💡',label:'PROFI-TIPP',text:`Stelle dir vor wie sich dein ${ex.muscle_group} bei jeder Wiederholung zusammenzieht – diese mind-muscle-connection erhöht die Muskelaktivierung um bis zu 20%.`},
+    {icon:'🔥',label:'PROGRESSION',text:'Steigere das Gewicht nur wenn du alle Sätze mit perfekter Form abschließen kannst. Qualität geht immer vor Quantität.'},
+    {icon:'🫁',label:'ATMUNG',text:'Einatmen in der Ausgangsposition, ausatmen bei der Anstrengung (Kontraktion). Halte die Luft nie zu lange an.'}
+  ];
+}
+
 function showExDetail(id){
   const ex=exercises.find(e=>e.id===id);if(!ex)return;
   document.getElementById('ex-detail-title').textContent=ex.name;
 
-  // Parse instructions into numbered steps
-  const steps = ex.instructions
-    ? ex.instructions.split(/[.!]|\n/).map(s=>s.trim()).filter(s=>s.length>8)
-    : [];
-
   // Difficulty badge based on equipment
-  const diffMap={'Körpergewicht':'Einsteiger','Kurzhanteln':'Mittel','Langhantel':'Fortgeschritten','Maschine':'Mittel','Kabelzug':'Mittel','Barbell':'Fortgeschritten'};
+  const diffMap={'Körpergewicht':'Einsteiger','Kurzhantel':'Einsteiger','Maschine':'Einsteiger','Kabelzug':'Mittel','Kettlebell':'Mittel','EZ-Stange':'Mittel','Langhantel':'Fortgeschritten','Sonstiges':'Mittel'};
   const diff = diffMap[ex.equipment] || 'Mittel';
   const diffColor = diff==='Einsteiger'?'#22d3ee':diff==='Mittel'?'#a78bfa':'#f59e0b';
 
-  // Primary muscles as chips
-  const allMuscles = [ex.muscle_group, ...(ex.secondary_muscles||[])];
+  // Detailed step-by-step instructions
+  const detailedSteps = getDetailedSteps(ex);
+  const tips = getExerciseTips(ex);
 
   document.getElementById('ex-detail-content').innerHTML=`
     <!-- Hero banner with body map -->
@@ -995,27 +1107,35 @@ function showExDetail(id){
     </div>`:''}
 
     <!-- Step by step instructions -->
-    ${steps.length?`
     <div class="card" style="margin:0 0 12px;">
-      <div class="card-label" style="margin-bottom:12px;">📋 Ausführung Schritt für Schritt</div>
-      ${steps.map((s,i)=>`
-        <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:${i<steps.length-1?'14px':'0'};">
-          <div style="min-width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#22d3ee);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:#fff;flex-shrink:0;">${i+1}</div>
-          <div style="font-size:14px;line-height:1.7;color:var(--text);padding-top:4px;">${esc(s)}.</div>
+      <div class="card-label" style="margin-bottom:14px;">📋 Ausführung Schritt für Schritt</div>
+      ${detailedSteps.map((s,i)=>`
+        <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:${i<detailedSteps.length-1?'16px':'0'};">
+          <div style="min-width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#22d3ee);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#fff;flex-shrink:0;">${i+1}</div>
+          <div style="font-size:14px;line-height:1.8;color:var(--text);padding-top:5px;">${s}</div>
         </div>
       `).join('')}
-    </div>`:''}
+    </div>
+
+    <!-- Common mistakes -->
+    <div class="card" style="margin:0 0 12px;background:rgba(239,68,68,.04);border-color:rgba(239,68,68,.15);">
+      <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;">
+        <span style="font-size:20px;">⚠️</span>
+        <div style="font-weight:700;font-size:13px;color:#f87171;">Häufige Fehler vermeiden</div>
+      </div>
+      ${getMistakes(ex).map(m=>`<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;"><span style="color:#f87171;font-size:12px;margin-top:3px;">✗</span><div style="font-size:13px;color:var(--text2);line-height:1.6;">${m}</div></div>`).join('')}
+    </div>
 
     <!-- Tips -->
-    <div class="card" style="margin:0 0 12px;background:rgba(34,211,238,.05);border-color:rgba(34,211,238,.15);">
+    ${tips.map(t=>`<div class="card" style="margin:0 0 10px;background:rgba(34,211,238,.05);border-color:rgba(34,211,238,.15);">
       <div style="display:flex;gap:10px;align-items:flex-start;">
-        <span style="font-size:20px;">💡</span>
+        <span style="font-size:20px;">${t.icon}</span>
         <div>
-          <div style="font-size:12px;font-weight:700;color:#22d3ee;margin-bottom:4px;">PROFI-TIPP</div>
-          <div style="font-size:13px;color:var(--text2);line-height:1.7;">Achte auf kontrollierte Bewegungen und atme gleichmäßig. Qualität vor Gewicht!</div>
+          <div style="font-size:12px;font-weight:700;color:#22d3ee;margin-bottom:4px;">${t.label}</div>
+          <div style="font-size:13px;color:var(--text2);line-height:1.7;">${t.text}</div>
         </div>
       </div>
-    </div>
+    </div>`).join('')}
   `;
   document.getElementById('ex-detail-modal').classList.add('show');
 }
@@ -1205,32 +1325,65 @@ async function startWorkout(day){
 
 function renderWorkout(){
   document.getElementById('workout-ex-container').innerHTML=wSession.exercises.map(ex=>{
-    const rid=ex.exercise_id; // real exercise UUID
+    const rid=ex.exercise_id;
     const sets=wSession.sets[rid]||[];
+    const hasPrev = sets.some(s=>s.prevWeight);
     return `
     <div style="padding:20px 16px 0;">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
         <div class="item-icon" style="background:${mg(ex.exercises?.muscle_group||'')};width:46px;height:46px;border-radius:14px;font-size:20px;">${me(ex.exercises?.muscle_group||'')}</div>
-        <div>
+        <div style="flex:1;">
           <div style="font-weight:900;font-size:17px;letter-spacing:-.5px;">${esc(ex.exercises?.name||'?')}</div>
           <div style="font-size:12px;color:var(--text2);margin-top:2px;">${ex.exercises?.muscle_group||''}</div>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:32px 1fr 1fr 42px;gap:8px;margin-bottom:10px;">
+
+      <!-- Header row -->
+      <div style="display:grid;grid-template-columns:32px 1fr 1fr 42px;gap:8px;margin-bottom:6px;align-items:center;">
         <div></div>
         <div style="text-align:center;font-size:9px;color:var(--text2);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">KG</div>
         <div style="text-align:center;font-size:9px;color:var(--text2);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">WDH</div>
         <div></div>
       </div>
-      ${sets.map((set,i)=>`
-        <div style="display:grid;grid-template-columns:32px 1fr 1fr 42px;gap:8px;margin-bottom:${set.prevWeight?'4px':'10px'};align-items:center;">
-          <div class="set-circle${set.done?' done':''}" id="sc-${rid}-${i}">${set.num}</div>
-          <input id="w-${rid}-${i}" class="set-input" type="number" placeholder="${set.prevWeight||0}" value="${set.weight}" min="0" step="0.5" inputmode="decimal" oninput="sv('${rid}',${i},'weight',this.value)">
-          <input id="r-${rid}-${i}" class="set-input" type="number" placeholder="${set.prevReps||set.reps}" value="${set.reps}" min="1" inputmode="numeric" oninput="sv('${rid}',${i},'reps',this.value)">
-          <button class="check-btn${set.done?' done':''}" id="cb-${rid}-${i}" onclick="toggleSet('${rid}',${i})">✓</button>
-        </div>
-        ${set.prevWeight?`<div style="display:grid;grid-template-columns:32px 1fr 1fr 42px;gap:8px;margin-bottom:8px;"><div></div><div style="text-align:center;font-size:10px;color:rgba(109,40,217,0.7);font-weight:700;">↑ ${set.prevWeight} kg</div><div style="text-align:center;font-size:10px;color:rgba(109,40,217,0.7);font-weight:700;">${set.prevReps} Wdh</div><div></div></div>`:''}
-        `).join('')}
+
+      ${sets.map((set,i)=>{
+        const showPrev = set.prevWeight || set.prevReps;
+        return `
+        <!-- Set ${i+1} -->
+        <div style="margin-bottom:${showPrev?'2px':'10px'};">
+          <div style="display:grid;grid-template-columns:32px 1fr 1fr 42px;gap:8px;align-items:center;">
+            <div class="set-circle${set.done?' done':''}" id="sc-${rid}-${i}">${set.num}</div>
+            <input id="w-${rid}-${i}" class="set-input${set.done?' done':''}" type="number"
+              placeholder="${set.prevWeight||'0'}"
+              value="${set.weight||''}"
+              min="0" step="0.5" inputmode="decimal"
+              oninput="sv('${rid}',${i},'weight',this.value)"
+              style="${set.done?'opacity:.5;':''}">
+            <input id="r-${rid}-${i}" class="set-input${set.done?' done':''}" type="number"
+              placeholder="${set.prevReps||ex.reps||'10'}"
+              value="${set.reps||''}"
+              min="1" inputmode="numeric"
+              oninput="sv('${rid}',${i},'reps',this.value)"
+              style="${set.done?'opacity:.5;':''}">
+            <button class="check-btn${set.done?' done':''}" id="cb-${rid}-${i}" onclick="toggleSet('${rid}',${i})">✓</button>
+          </div>
+          ${showPrev?`
+          <div style="display:grid;grid-template-columns:32px 1fr 1fr 42px;gap:8px;margin-top:3px;margin-bottom:8px;">
+            <div></div>
+            <div style="text-align:center;">
+              <span style="font-size:10px;color:#6d28d9;font-weight:800;background:rgba(109,40,217,0.12);border-radius:6px;padding:2px 8px;display:inline-block;">
+                ↗ ${set.prevWeight||'–'} kg
+              </span>
+            </div>
+            <div style="text-align:center;">
+              <span style="font-size:10px;color:#6d28d9;font-weight:800;background:rgba(109,40,217,0.12);border-radius:6px;padding:2px 8px;display:inline-block;">
+                ${set.prevReps||'–'} Wdh
+              </span>
+            </div>
+            <div></div>
+          </div>`:''}
+        </div>`;
+      }).join('')}
     </div>
     <div style="height:1px;background:var(--border);margin:20px 0 0;"></div>`;
   }).join('');
@@ -1239,11 +1392,17 @@ function renderWorkout(){
 function sv(eid,i,f,v){wSession.sets[eid][i][f]=v;}
 async function toggleSet(eid,i){
   const set=wSession.sets[eid][i];
-  // Always read latest values directly from DOM inputs
+  // Always read latest values directly from DOM inputs, fall back to placeholder (prev value)
   const wInput=document.getElementById(`w-${eid}-${i}`);
   const rInput=document.getElementById(`r-${eid}-${i}`);
-  if(wInput) set.weight=wInput.value;
-  if(rInput) set.reps=rInput.value;
+  if(wInput){
+    set.weight = wInput.value || wInput.placeholder || '0';
+    if(!wInput.value && wInput.placeholder) wInput.value = wInput.placeholder; // fill in prev value visually
+  }
+  if(rInput){
+    set.reps = rInput.value || rInput.placeholder || '10';
+    if(!rInput.value && rInput.placeholder) rInput.value = rInput.placeholder;
+  }
   set.done=!set.done;
   const sc=document.getElementById(`sc-${eid}-${i}`),cb=document.getElementById(`cb-${eid}-${i}`);
   if(sc)sc.className=`set-circle${set.done?' done':''}`;
@@ -1411,6 +1570,10 @@ async function renderStats(){
       get('session_sets','?order=created_at.asc&limit=1000&select=*,exercises(name,muscle_group)')
     ]);
     statsCache={sess,sets};
+    window._calWeekOffset=0;
+    window._sessionDates=new Set(sess.map(s=>s.date));
+    window._sessById={};
+    sess.forEach(s=>{ if(!window._sessById[s.date]) window._sessById[s.date]=[]; window._sessById[s.date].push(s); });
     if(!sess.length){c.innerHTML='<div class="empty"><div class="empty-icon">📊</div><div class="empty-title">Noch keine Daten</div><div class="empty-sub">Starte dein erstes Workout!</div></div>';return;}
     const vol=sets.reduce((a,s)=>a+(+(s.weight_kg||0))*(+(s.reps||0)),0);
     const wm={};sess.forEach(s=>{const w=`KW${wn(new Date(s.date))}`;wm[w]=(wm[w]||0)+1;});
@@ -1424,12 +1587,26 @@ async function renderStats(){
       byEx[n].push(s);
     });
 
+    // Week calendar data
+    const sessionDates = new Set(sess.map(s=>s.date));
+
     c.innerHTML=`
       <div class="stats-row">
         <div class="stat"><div class="stat-num text-gradient">${sess.length}</div><div class="stat-label">Workouts</div></div>
         <div class="stat"><div class="stat-num text-gradient">${sets.length}</div><div class="stat-label">Sätze</div></div>
         <div class="stat"><div class="stat-num text-gradient">${Math.round(vol/1000*10)/10}t</div><div class="stat-label">Volumen</div></div>
       </div>
+
+      <!-- WEEK CALENDAR -->
+      <div class="card" id="week-cal-card" style="margin:0 16px 12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <button onclick="changeCalWeek(-1)" style="background:var(--surface3);border:1px solid var(--border);color:var(--text);width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer;">‹</button>
+          <div id="cal-week-label" style="font-weight:800;font-size:14px;"></div>
+          <button onclick="changeCalWeek(1)" style="background:var(--surface3);border:1px solid var(--border);color:var(--text);width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer;">›</button>
+        </div>
+        <div id="cal-week-days" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;"></div>
+      </div>
+
       <div class="card"><div class="card-label">Workouts pro Woche</div><div class="chart-wrap"><canvas id="chart-w"></canvas></div></div>
 
       <div class="sec-title">Kraftentwicklung</div>
@@ -1462,6 +1639,7 @@ async function renderStats(){
       if(charts['w'])charts['w'].destroy();
       charts['w']=new Chart(ctx,{type:'bar',data:{labels:wl,datasets:[{data:wv,backgroundColor:'rgba(109,40,217,.4)',borderColor:'rgba(139,92,246,1)',borderWidth:2,borderRadius:10}]},
         options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#7070a0',font:{size:11,family:'Space Grotesk',weight:'700'}},grid:{color:'rgba(255,255,255,.03)'},border:{color:'transparent'}},y:{ticks:{color:'#7070a0',stepSize:1,font:{size:11}},grid:{color:'rgba(255,255,255,.03)'},border:{color:'transparent'}}}}});
+      renderCalWeek(0);
     },100);
   }catch(e){c.innerHTML=`<div class="empty"><div class="empty-icon">❌</div><div class="empty-title">Fehler</div><div class="empty-sub">${e.message}</div></div>`;}
 }
@@ -1631,6 +1809,76 @@ function renderExChart(mode){
 }
 
 
+
+
+// ── WEEK CALENDAR ──
+function renderCalWeek(offset){
+  window._calWeekOffset = offset;
+  const today = new Date();
+  const dow = today.getDay(); // 0=Sun
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - ((dow+6)%7) + offset*7);
+
+  const days=['Mo','Di','Mi','Do','Fr','Sa','So'];
+  const label = document.getElementById('cal-week-label');
+  const daysEl = document.getElementById('cal-week-days');
+  if(!label||!daysEl) return;
+
+  const weekStart = new Date(monday);
+  const weekEnd = new Date(monday); weekEnd.setDate(monday.getDate()+6);
+  const fmt = d => d.toLocaleDateString('de-DE',{day:'numeric',month:'short'});
+  label.textContent = `${fmt(weekStart)} – ${fmt(weekEnd)}`;
+
+  let html='';
+  for(let i=0;i<7;i++){
+    const d = new Date(monday); d.setDate(monday.getDate()+i);
+    const dateStr = d.toISOString().split('T')[0];
+    const isToday = d.toDateString()===today.toDateString();
+    const hasSess = window._sessionDates?.has(dateStr);
+    const isFuture = d > today;
+    const sessions = window._sessById?.[dateStr]||[];
+
+    let bg = 'var(--surface2)';
+    let border = 'var(--border)';
+    let dotColor = 'transparent';
+    let dayColor = 'var(--text2)';
+    let numColor = 'var(--text2)';
+
+    if(isToday){ border='#6d28d9'; dayColor='#a78bfa'; numColor='#fff'; bg='rgba(109,40,217,0.15)'; }
+    if(hasSess){ dotColor='#22d3ee'; numColor='#fff'; bg='rgba(34,211,238,0.1)'; border='rgba(34,211,238,0.3)'; }
+    if(isToday && hasSess){ bg='rgba(34,211,238,0.15)'; border='#22d3ee'; }
+    if(isFuture){ dayColor='rgba(255,255,255,0.2)'; numColor='rgba(255,255,255,0.2)'; }
+
+    const clickable = hasSess ? `onclick="showDaySessions('${dateStr}')" style="cursor:pointer;"` : '';
+    html += `<div ${clickable} style="background:${bg};border:1px solid ${border};border-radius:12px;padding:8px 4px;text-align:center;transition:all .2s;">
+      <div style="font-size:9px;font-weight:700;color:${dayColor};margin-bottom:4px;">${days[i]}</div>
+      <div style="font-size:15px;font-weight:900;color:${numColor};margin-bottom:4px;">${d.getDate()}</div>
+      <div style="width:6px;height:6px;border-radius:50%;background:${dotColor};margin:0 auto;"></div>
+      ${hasSess?`<div style="font-size:8px;color:#22d3ee;margin-top:2px;font-weight:700;">${sessions.length}×</div>`:''}
+    </div>`;
+  }
+  daysEl.innerHTML = html;
+}
+
+function changeCalWeek(dir){
+  renderCalWeek((window._calWeekOffset||0)+dir);
+}
+
+async function showDaySessions(dateStr){
+  const sessions = window._sessById?.[dateStr]||[];
+  if(!sessions.length) return;
+  // If only one session, open it directly
+  if(sessions.length===1){ showSessionDetail(sessions[0].id); return; }
+  // Multiple sessions: show picker
+  const html=`<div style="padding:20px 16px;">
+    <div style="font-weight:900;font-size:18px;margin-bottom:16px;">${new Date(dateStr).toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'})}</div>
+    ${sessions.map(s=>`<div class="list-item" onclick="closeModal('day-sessions-modal');showSessionDetail('${s.id}')" style="cursor:pointer;">
+      <div class="item-icon" style="background:var(--surface3);">📅</div>
+      <div class="item-info"><div class="item-title">${s.workout_days?.name||'Training'}</div><div class="item-sub">${s.duration_minutes||0} Min</div></div>
+    </div>`).join('')}
+  </div>`;
+  showModal('day-sessions-modal',html);
+}
 
 // ── PROFILE ──
 function calcBMI(w,h){if(!w||!h)return null;return(w/((h/100)**2));}
